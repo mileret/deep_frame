@@ -6,7 +6,7 @@ import sys
 import pdb
 
 from matplotlib import pyplot as plt
-import skimage.io as skio
+# import skimage.io as skio
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -89,6 +89,33 @@ def visualize_img_tensor(img_tensor, img_path, mu=0, show=None):
     img.save(img_path)
 
 
+def visualize_img_tensor_l(img_tensor, img_path, mu=0, show=None):
+    if img_tensor.ndim == 4:
+        img_tensor = img_tensor[0]
+    img_array = img_tensor.detach().cpu().numpy().transpose(1, 2, 0)
+    
+    if isinstance(mu, torch.Tensor):
+        mu = mu.detach().cpu().numpy()
+    img_array += mu
+    if img_array.mean() > 1:
+        img_array /= 255
+    img_array = img_array.clip(0, 1)
+
+    if show:
+        plt.figure()
+        plt.imshow(img_array)
+        plt.title(show)
+        plt.axis('off')
+
+    # skio.imsave(fname=img_path, arr=img_array)
+    # use PIL to save image
+    img_array = (img_array * 255).astype('uint8')
+    img = Image.fromarray(img_array)
+    img = img.convert('L')
+    img.save(img_path)
+
+
+
 class Descriptor(nn.Module):
     # You can modify the architecture as well as forward function, e.g., something like max pooling
     def __init__(self, num_layers):
@@ -145,6 +172,11 @@ def run(exp_dir: str, num_layers: int, img_path: str, logger: logging.Logger):
     model = Descriptor(num_layers=num_layers)
     model.to(device)
 
+    # weights = list(model.parameters())[0].data
+    # weights = weights[:4]
+    # grid = make_grid(weights, normalize=True)
+    # visualize_img_tensor_l(img_tensor=grid, img_path=os.path.join(exp_dir, 'conv1_l.png'))
+
     log_interval = num_epochs // 100
     vis_interval = num_epochs // 10
     for epoch in range(num_epochs):
@@ -178,8 +210,10 @@ def run(exp_dir: str, num_layers: int, img_path: str, logger: logging.Logger):
 
     # visualize conv1 filters
     weights = list(model.parameters())[0].data
+    weights = weights[:4]
     grid = make_grid(weights, normalize=True)
     visualize_img_tensor(img_tensor=grid, img_path=os.path.join(exp_dir, 'conv1.png'))
+    visualize_img_tensor_l(img_tensor=grid, img_path=os.path.join(exp_dir, 'conv1_l.png'))
 
 
 def main():
